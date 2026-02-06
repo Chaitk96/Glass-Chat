@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Glass Chat Fixed</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Poppins;}
+
+body{
+height:100vh;
+background:linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
+display:flex;justify-content:center;align-items:center;
+}
+
+.chat{
+width:380px;height:560px;
+backdrop-filter:blur(25px);
+background:rgba(255,255,255,0.08);
+border:1px solid rgba(255,255,255,0.2);
+border-radius:20px;
+box-shadow:0 20px 50px rgba(0,0,0,0.4);
+display:flex;flex-direction:column;overflow:hidden;
+}
+
+.header{
+padding:16px;text-align:center;
+color:white;font-weight:600;
+background:rgba(255,255,255,0.1);
+}
+
+.messages{
+flex:1;padding:14px;
+overflow-y:auto;
+display:flex;flex-direction:column;
+gap:8px;
+}
+
+.msg{
+max-width:72%;
+padding:10px 14px;
+border-radius:18px;
+color:white;font-size:14px;
+animation:fade .2s ease;
+}
+
+.right{align-self:flex-end;background:linear-gradient(135deg,#3b82f6,#9333ea);}
+.left{align-self:flex-start;background:rgba(255,255,255,0.25);}
+
+.typing{
+display:none;
+align-self:flex-start;
+background:rgba(255,255,255,0.25);
+padding:10px 14px;
+border-radius:18px;
+width:60px;
+}
+
+.dot{
+height:6px;width:6px;margin:0 2px;
+background:white;border-radius:50%;
+display:inline-block;
+animation:bounce 1.2s infinite;
+}
+
+.dot:nth-child(2){animation-delay:.2s;}
+.dot:nth-child(3){animation-delay:.4s;}
+
+@keyframes bounce{
+0%,80%,100%{transform:scale(0);}
+40%{transform:scale(1);}
+}
+
+.input{
+display:flex;padding:10px;
+background:rgba(255,255,255,0.1);
+}
+
+input{
+flex:1;border:none;
+border-radius:30px;
+padding:10px 14px;
+background:rgba(255,255,255,0.15);
+color:white;outline:none;
+}
+
+button{
+margin-left:8px;border:none;
+border-radius:30px;
+padding:10px 16px;
+cursor:pointer;
+background:linear-gradient(135deg,#06b6d4,#9333ea);
+color:white;font-weight:600;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(8px);}
+to{opacity:1;transform:translateY(0);}
+}
+</style>
+</head>
+
+<body>
+
+<div class="chat">
+<div class="header">💬 Glass Live Chat</div>
+
+<div class="messages" id="msgs">
+<div class="typing" id="typing">
+<span class="dot"></span>
+<span class="dot"></span>
+<span class="dot"></span>
+</div>
+</div>
+
+<div class="input">
+<input id="inp" placeholder="Type a message...">
+<button onclick="send()">Send</button>
+</div>
+</div>
+
+<script>
+const myId = Math.random().toString(36).slice(2);
+const ws = new WebSocket("ws://127.0.0.1:8000/ws");
+
+let typingTimer;
+
+ws.onmessage = e => {
+let data;
+
+try{
+data = JSON.parse(e.data);
+}catch{
+return; // ignore garbage
+}
+
+// ignore typing packets from self
+if(data.type === "typing"){
+if(data.sender !== myId) showTyping();
+return;
+}
+
+// only render real messages
+if(data.type === "message"){
+hideTyping();
+addMsg(data.text, data.sender === myId);
+}
+};
+
+function send(){
+const i = inp.value.trim();
+if(!i) return;
+
+ws.send(JSON.stringify({
+type:"message",
+text:i,
+sender:myId
+}));
+
+inp.value="";
+}
+
+function addMsg(text,mine){
+const m=document.createElement("div");
+m.className="msg "+(mine?"right":"left");
+m.textContent=text;
+
+msgs.insertBefore(m,typing);
+m.scrollIntoView({behavior:"smooth"});
+}
+
+function showTyping(){
+typing.style.display="block";
+clearTimeout(typingTimer);
+typingTimer=setTimeout(hideTyping,1200);
+}
+
+function hideTyping(){
+typing.style.display="none";
+}
+
+inp.addEventListener("input",()=>{
+ws.send(JSON.stringify({
+type:"typing",
+sender:myId
+}));
+});
+
+inp.addEventListener("keypress",e=>{
+if(e.key==="Enter") send();
+});
+</script>
+
+</body>
+</html>
